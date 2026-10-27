@@ -24,6 +24,9 @@ interface Played {
 const POSITIONS = [0, 1, 2, 3, 4]
 const ROWS = [0, 1, 2, 3, 4, 5]
 const MARKS = ["нет", "есть, не на месте", "на месте"]
+// SLOW is how long a guess may take before the panel says it is still working; a quicker one
+// replaces the previous guess in the panel without a flash of "Подбираю слово…" in between.
+const SLOW = 300
 
 func blank() []number {
     return [0, 0, 0, 0, 0]
@@ -55,11 +58,16 @@ export comp App() {
     state feedback = blank()
     state suggestion ?Suggestion = null
     state loading = false
+    // last is the latest guess that arrived; the panel keeps showing it while the next one is
+    // computed, unless that takes longer than SLOW.
+    state last ?Suggestion = null
+    state slow = false
     state solved = false
     state failure = ""
     derived playing = !solved && turns.length < MAX_TURNS
     derived spare = ROWS.slice(turns.length + (playing ? 1 : 0))
     derived correct = feedbackKey(feedback) == SOLVED
+    derived shown = suggestion ?? (slow ? null : last)
     // game changes with every new game or undo, so a guess computed before it is dropped.
     let game = 0
 
@@ -79,16 +87,24 @@ export comp App() {
         const current = game
         loading = true
         failure = ""
+        const timer = setTimeout(() => {
+            if current == game {
+                slow = true
+            }
+        }, SLOW)
         const next, err = try await go nextSuggestion(turns)
+        clearTimeout(timer)
         if current != game {
             return
         }
         loading = false
+        slow = false
         if err != null {
             failure = err.message
             return
         }
         suggestion = next
+        last = next
     }
 
     func toggle(i number) {
@@ -114,6 +130,7 @@ export comp App() {
     func restart(marks []number) {
         game++
         loading = false
+        slow = false
         solved = false
         failure = ""
         suggestion = null
@@ -214,14 +231,14 @@ export comp App() {
                         <p class={styles.title}>Не сходится</p>
                         <p class={styles.muted}>{failure}</p>
                     </div>
-                } else if suggestion != null {
+                } else if shown != null {
                     <div class={styles.stat}>
-                        <span class={styles.big}>{suggestion.candidates}</span>
+                        <span class={styles.big}>{shown.candidates}</span>
                         <span class={styles.muted}>
-                            {plural(suggestion.candidates, "слово ещё подходит", "слова ещё подходят", "слов ещё подходят")}
+                            {plural(shown.candidates, "слово ещё подходит", "слова ещё подходят", "слов ещё подходят")}
                         </span>
                     </div>
-                    if suggestion.probe {
+                    if shown.probe {
                         <p class={styles.probe}>
                             <span class={styles.badge}>разведчик</span>Ответом это слово быть не может, зато проверит больше букв сразу.
                         </p>
