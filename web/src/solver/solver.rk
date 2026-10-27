@@ -1,0 +1,214 @@
+// The solver of ../../../main.go, ported to Rook for the web client: the default "value" strategy
+// with probe words. The functions take the dictionary as an argument, so the same module runs in
+// the browser (with the dictionary of dictionary.rk) and under `rook run` (scripts/selftest.rk).
+//
+// Words are plain strings: every letter of the dictionary is one UTF-16 unit, so w[i] is the
+// i-th letter. A feedback pattern is a number from 0 to 242, the five marks in base 3 with the
+// first letter most significant, like patternKey in main.go:
+//
+//	2 = right letter, right place  ("на месте")
+//	1 = right letter, wrong place  ("есть, но не на этом месте")
+//	0 = letter not in the word     ("нет")
+
+export const LENGTH = 5
+export const MAX_TURNS = 6
+
+// SOLVED is the pattern 22222.
+export const SOLVED = 242
+
+// Turn is one played guess with the feedback the game gave for it, a mark per letter.
+export interface Turn {
+    guess string
+    feedback []number
+}
+
+export interface Suggestion {
+    guess string
+    candidates number
+    // probe is true when the guess can't be the answer: it only tests more letters at once.
+    probe bool
+}
+
+export func parseDictionary(text string) []string {
+    const words []string = []
+    for line in text.split("\n") {
+        const word = line.trim().toLowerCase()
+        if word.length == LENGTH {
+            words.push(word)
+        }
+    }
+    words.sort()
+    return words
+}
+
+// computePattern compares guess against secret the way the game does, handling repeated letters:
+// a letter is only marked "present" as many times as it still occurs in the secret after exact
+// matches are accounted for.
+export func computePattern(guess, secret string) number {
+    const marks = [0, 0, 0, 0, 0]
+    const remaining []string = []
+    for let i = 0; i < LENGTH; i++ {
+        if guess[i] == secret[i] {
+            marks[i] = 2
+        } else {
+            remaining.push(secret[i])
+        }
+    }
+
+    let key = 0
+    for let i = 0; i < LENGTH; i++ {
+        if marks[i] != 2 {
+            const at = remaining.indexOf(guess[i])
+            if at >= 0 {
+                marks[i] = 1
+                remaining.splice(at, 1)
+            }
+        }
+        key = key * 3 + marks[i]
+    }
+    return key
+}
+
+export func feedbackKey(feedback []number) number {
+    let key = 0
+    for mark in feedback {
+        key = key * 3 + mark
+    }
+    return key
+}
+
+export func filterCandidates(candidates []string, guess string, pattern number) []string {
+    return candidates.filter(c => computePattern(guess, c) == pattern)
+}
+
+// isFirst reports whether w[i] is the first occurrence of its letter in w, so a repeated letter
+// is counted once.
+func isFirst(w string, i number) bool {
+    return w.indexOf(w[i]) == i
+}
+
+// letterValues computes the "value" of every letter: the number of words containing it at least
+// once. Letters common among the remaining candidates are worth testing, because their feedback
+// splits the set.
+func letterValues(words []string) Map<string, number> {
+    const values Map<string, number> = new Map()
+    for w in words {
+        for let i = 0; i < LENGTH; i++ {
+            if isFirst(w, i) {
+                values.set(w[i], (values.get(w[i]) ?? 0) + 1)
+            }
+        }
+    }
+    return values
+}
+
+// splitValues is letterValues over the candidates, keeping only letters that tell them apart:
+// a letter found in every candidate can't split the set.
+func splitValues(candidates []string) Map<string, number> {
+    const values = letterValues(candidates)
+    for letter, count in values {
+        if count == candidates.length {
+            values.delete(letter)
+        }
+    }
+    return values
+}
+
+// wordValue sums the values of the distinct letters of w.
+func wordValue(w string, values Map<string, number>) number {
+    let total = 0
+    for let i = 0; i < LENGTH; i++ {
+        if isFirst(w, i) {
+            total += values.get(w[i]) ?? 0
+        }
+    }
+    return total
+}
+
+// countGroups returns into how many groups the feedback of guess splits the candidates.
+func countGroups(guess string, candidates []string) number {
+    const seen Set<number> = new Set()
+    for c in candidates {
+        seen.add(computePattern(guess, c))
+    }
+    return seen.size
+}
+
+// mostValuable picks the highest-value word among words. Among equally valuable words it prefers
+// the one whose feedback splits the candidates into the most groups: letter values can't tell
+// that, say, ж/м/х separate жатка/матка/хатка while ч/п/с/ы do not.
+func mostValuable(words, candidates []string, values Map<string, number>) (string, number) {
+    let bestValue = -1
+    let top []string = []
+    for w in words {
+        const value = wordValue(w, values)
+        if value > bestValue {
+            bestValue = value
+            top = []
+        }
+        if value == bestValue {
+            top.push(w)
+        }
+    }
+
+    let best = top[0]
+    if top.length > 1 {
+        let bestGroups = 0
+        for w in top {
+            const groups = countGroups(w, candidates)
+            if groups > bestGroups {
+                best = w
+                bestGroups = groups
+            }
+        }
+    }
+    return best, bestValue
+}
+
+// valueGuess suggests the most valuable word that still fits the feedback. When there are more
+// candidates than turns left, it may instead suggest a probe from the whole dictionary that tests
+// more of the distinguishing letters at once, which breaks traps like гр?за/грива/груда/грыжа.
+export func valueGuess(candidates, dictionary []string, turnsLeft number) string {
+    const values = splitValues(candidates)
+    const best, bestValue = mostValuable(candidates, candidates, values)
+    if candidates.length <= turnsLeft || turnsLeft == 1 {
+        return best
+    }
+    const probe, probeValue = mostValuable(dictionary, candidates, values)
+    return probeValue > bestValue ? probe : best
+}
+
+// suggest replays the turns played so far and returns the next guess, like `wordsolver -suggest`.
+export func suggest(dictionary []string, turns []Turn) (Suggestion, error) {
+    if turns.length >= MAX_TURNS {
+        return null, error("лимит в 6 попыток исчерпан")
+    }
+
+    let candidates = dictionary
+    for turn in turns {
+        if turn.guess.length != LENGTH || turn.feedback.length != LENGTH {
+            return null, error(`неверный ход «${turn.guess}»: нужно 5 букв и 5 отметок`)
+        }
+        candidates = filterCandidates(candidates, turn.guess, feedbackKey(turn.feedback))
+    }
+    if candidates.length == 0 {
+        return null, error("Подходящих слов не осталось — проверьте отметки в прошлых попытках.")
+    }
+
+    const guess = valueGuess(candidates, dictionary, MAX_TURNS - turns.length)
+    return { guess, candidates: candidates.length, probe: !candidates.includes(guess) }, null
+}
+
+// solve plays the solver against a known secret and returns the number of guesses it took, or 0
+// if 6 guesses weren't enough.
+export func solve(dictionary []string, secret string) number {
+    let candidates = dictionary
+    for let turn = 1; turn <= MAX_TURNS; turn++ {
+        const guess = valueGuess(candidates, dictionary, MAX_TURNS + 1 - turn)
+        if guess == secret {
+            return turn
+        }
+        candidates = filterCandidates(candidates, guess, computePattern(guess, secret))
+    }
+    return 0
+}

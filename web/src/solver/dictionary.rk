@@ -1,0 +1,6 @@
+// The dictionary of the Go solver, ../../../words.txt, bundled by Vite as text: one list for both
+// clients.
+import words from "../../../words.txt?raw"
+import { parseDictionary } from "./solver.rk"
+
+export const DICTIONARY = parseDictionary(words)

@@ -1,0 +1,84 @@
+/* A letter cell: a key with an edge under it, coloured by the mark the game gave the letter, or a
+   dashed slot of a row not played yet. */
+
+.tile {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: var(--tile);
+  height: var(--tile);
+  border: 2px solid transparent;
+  border-radius: calc(var(--tile) * 0.2);
+  font: 650 calc(var(--tile) * 0.42)/1 var(--display);
+  text-transform: uppercase;
+  user-select: none;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+
+.empty {
+  border-color: var(--slot);
+  border-style: dashed;
+}
+
+.absent {
+  border-color: var(--absent);
+  background: var(--absent);
+  color: var(--absent-ink);
+  box-shadow: 0 4px 0 var(--absent-edge);
+}
+
+.present {
+  border-color: var(--present-line);
+  background: var(--present);
+  color: var(--present-ink);
+  box-shadow: 0 4px 0 var(--present-edge);
+}
+
+.correct {
+  border-color: var(--correct);
+  background: var(--correct);
+  color: var(--correct-ink);
+  box-shadow: 0 4px 0 var(--correct-edge);
+}
+
+/* A new suggestion comes in letter by letter. */
+.enter {
+  animation: tile-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.enter[data-index="1"] {
+  animation-delay: 45ms;
+}
+
+.enter[data-index="2"] {
+  animation-delay: 90ms;
+}
+
+.enter[data-index="3"] {
+  animation-delay: 135ms;
+}
+
+.enter[data-index="4"] {
+  animation-delay: 180ms;
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.86);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+
+  .enter {
+    animation: none;
+  }
+}

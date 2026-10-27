@@ -1,0 +1,40 @@
+// Plays the web solver against every dictionary word, like `go run . -selftest`, so the port in
+// src/solver/solver.rk can be checked against the Go solver: the numbers should be the same.
+// `go for` splits the dictionary between the processors.
+import { readFileSync } from "node:fs"
+import { MAX_TURNS, parseDictionary, solve } from "../src/solver/solver.rk"
+
+const dictionary = parseDictionary(readFileSync("../words.txt", "utf8"))
+const guesses = make([]uint8, dictionary.length)
+
+go for i, _ in guesses {
+    guesses[i] = solve(dictionary, dictionary[i])
+}
+
+console.log(`Словарь: ${dictionary.length} слов\n`)
+let total = 0
+let sum = 0
+let worst = 0
+for let turn = 1; turn <= MAX_TURNS; turn++ {
+    const count = guesses.filter(g => g == turn).length
+    if count > 0 {
+        console.log(`  за ${turn} попытку(и): ${count} слов`)
+        total += count
+        sum += turn * count
+        worst = turn
+    }
+}
+if total > 0 {
+    console.log(`\nСреднее число попыток: ${(sum / total).toFixed(2)}`)
+}
+console.log(`Максимум попыток на одно слово: ${worst}`)
+
+const failures = dictionary.filter((_, i) => guesses[i] == 0)
+if failures.length > 0 {
+    console.log(`\nНЕ решено за 6 попыток (${failures.length} слов):`)
+    for word in failures {
+        console.log(" ", word)
+    }
+} else {
+    console.log("\nВсе слова словаря угадываются не более чем за 6 попыток.")
+}

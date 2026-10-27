@@ -1,0 +1,117 @@
+/* The tokens of the theme and the base of the page. Light is warm paper, dark is deep ink; the
+   tiles keep the colours of the game, grey, white and yellow, so its answer is easy to copy.
+   Dark applies when the system asks for it, unless light is picked, or when dark is picked:
+   theme.rk sets data-theme on the root. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f3efe7;
+  --dot: rgba(70, 55, 30, 0.1);
+  --surface: #fffcf6;
+  --surface-2: #f1ebe0;
+  --line: #e2d9c9;
+  --ink: #1d1b17;
+  --muted: #776f63;
+  --accent: #1d1b17;
+  --accent-ink: #fffcf6;
+  --accent-edge: #000;
+  --focus: #d99a00;
+  --danger: #c2412d;
+  --success: #2e7d46;
+  --shadow: 0 1px 0 rgba(60, 45, 20, 0.04), 0 18px 40px -20px rgba(60, 45, 20, 0.28);
+
+  --slot: #d6ccb9;
+  --absent: #6c6f75;
+  --absent-ink: #fff;
+  --absent-edge: #4b4e54;
+  --present: #fffefb;
+  --present-ink: #1d1b17;
+  --present-line: #d5cbb8;
+  --present-edge: #cbbfa8;
+  --correct: #ffd43b;
+  --correct-ink: #1d1b17;
+  --correct-edge: #d3a400;
+
+  --display: "Unbounded Variable", "Unbounded", system-ui, sans-serif;
+  --text: "Manrope Variable", "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg: #111216;
+    --dot: rgba(255, 255, 255, 0.055);
+    --surface: #1a1c22;
+    --surface-2: #23262e;
+    --line: #2c3039;
+    --ink: #f2eee6;
+    --muted: #9b978f;
+    --accent: #f2eee6;
+    --accent-ink: #111216;
+    --accent-edge: #a39e94;
+    --focus: #ffd43b;
+    --danger: #ff7a66;
+    --success: #5fd17f;
+    --shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.7);
+
+    --slot: #363a44;
+    --absent: #3d414b;
+    --absent-ink: #e9e6df;
+    --absent-edge: #282b32;
+    --present: #f2eee6;
+    --present-ink: #111216;
+    --present-line: #f2eee6;
+    --present-edge: #a39e94;
+    --correct: #ffd43b;
+    --correct-ink: #111216;
+    --correct-edge: #ad8600;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #111216;
+  --dot: rgba(255, 255, 255, 0.055);
+  --surface: #1a1c22;
+  --surface-2: #23262e;
+  --line: #2c3039;
+  --ink: #f2eee6;
+  --muted: #9b978f;
+  --accent: #f2eee6;
+  --accent-ink: #111216;
+  --accent-edge: #a39e94;
+  --focus: #ffd43b;
+  --danger: #ff7a66;
+  --success: #5fd17f;
+  --shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.7);
+
+  --slot: #363a44;
+  --absent: #3d414b;
+  --absent-ink: #e9e6df;
+  --absent-edge: #282b32;
+  --present: #f2eee6;
+  --present-ink: #111216;
+  --present-line: #f2eee6;
+  --present-edge: #a39e94;
+  --correct: #ffd43b;
+  --correct-ink: #111216;
+  --correct-edge: #ad8600;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--bg);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.4px);
+  background-size: 20px 20px;
+  color: var(--ink);
+  font: 500 15px/1.45 var(--text);
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.25s,
+    color 0.25s;
+}

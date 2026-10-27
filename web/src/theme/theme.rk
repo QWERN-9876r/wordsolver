@@ -1,0 +1,43 @@
+// The colour theme: the tokens of theme.module.css and the choice between light and dark, which the
+// switch in the corner of the page makes and the page remembers; "auto" follows the system.
+import "./theme.module.css"
+
+export type Theme "auto" | "light" | "dark"
+
+export const THEMES []Theme = ["auto", "light", "dark"]
+export const THEME_NAMES = { auto: "Как в системе", light: "Светлая тема", dark: "Тёмная тема" }
+
+const STORAGE_KEY = "wordsolver-theme"
+
+// loadTheme reads the saved choice. Storage may be unavailable, as in a private window: then the
+// theme is "auto".
+export func loadTheme() Theme {
+    const saved, _ = try localStorage.getItem(STORAGE_KEY)
+    switch saved {
+    case "light":
+        return "light"
+    case "dark":
+        return "dark"
+    }
+    return "auto"
+}
+
+export func saveTheme(theme Theme) {
+    // A private window may refuse; the choice then lasts until the page is reloaded.
+    const err = try localStorage.setItem(STORAGE_KEY, theme)
+    if err != null {
+        console.warn("тема не сохранена:", err.message)
+    }
+}
+
+export func applyTheme(theme Theme) {
+    const root = document.documentElement
+    if theme == "auto" {
+        root.removeAttribute("data-theme")
+    } else {
+        root.setAttribute("data-theme", theme)
+    }
+    // The browser's own bars take the colour of the page.
+    const background = getComputedStyle(root).getPropertyValue("--bg").trim()
+    document.querySelector("meta[name=theme-color]")?.setAttribute("content", background)
+}

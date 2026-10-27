@@ -1,0 +1,4 @@
+// The entry of the page, loaded by index.html: draws the screen of the solver.
+import { App } from "./components/app/app.rk"
+
+document.body.append(<App />)

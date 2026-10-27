@@ -1,0 +1,265 @@
+// The screen of the solver. The board shows the game as it goes, six rows of five letters, and
+// the next guess is computed in the page itself, by a goroutine in a Web Worker, so there is no
+// server and the page never freezes.
+import styles from "./app.module.css"
+import { DICTIONARY } from "../../solver/dictionary.rk"
+import { MAX_TURNS, SOLVED, Suggestion, Turn, feedbackKey, suggest } from "../../solver/solver.rk"
+import { Theme, applyTheme, loadTheme, saveTheme } from "../../theme/theme.rk"
+import { Legend } from "../legend/legend.rk"
+import { ThemeSwitch } from "../theme-switch/theme-switch.rk"
+import { Tile } from "../tile/tile.rk"
+
+// nextSuggestion runs as a goroutine: its worker loads the dictionary once and keeps it.
+func nextSuggestion(turns []Turn) (Suggestion, error) {
+    return suggest(DICTIONARY, turns)
+}
+
+// Played is a turn on the board, with the number of words that fitted before it.
+interface Played {
+    guess string
+    feedback []number
+    candidates number
+}
+
+const POSITIONS = [0, 1, 2, 3, 4]
+const ROWS = [0, 1, 2, 3, 4, 5]
+const MARKS = ["нет", "есть, не на месте", "на месте"]
+
+func blank() []number {
+    return [0, 0, 0, 0, 0]
+}
+
+// plural picks the Russian form for n: 1 слово, 2 слова, 5 слов.
+func plural(n number, one, few, many string) string {
+    const tens = n % 100
+    const units = n % 10
+    if tens >= 11 && tens <= 14 {
+        return many
+    }
+    if units == 1 {
+        return one
+    }
+    if units >= 2 && units <= 4 {
+        return few
+    }
+    return many
+}
+
+func describe(i number, turn Played) string {
+    return `Ход ${i + 1}, ${turn.guess}: ${turn.feedback.map(m => MARKS[m]).join(", ")}`
+}
+
+export comp App() {
+    state theme = loadTheme()
+    state turns []Played = []
+    state feedback = blank()
+    state suggestion ?Suggestion = null
+    state loading = false
+    state solved = false
+    state failure = ""
+    derived playing = !solved && turns.length < MAX_TURNS
+    derived spare = ROWS.slice(turns.length + (playing ? 1 : 0))
+    derived correct = feedbackKey(feedback) == SOLVED
+    // game changes with every new game or undo, so a guess computed before it is dropped.
+    let game = 0
+
+    effect {
+        applyTheme(theme)
+    }
+
+    func pickTheme(next Theme) {
+        theme = next
+        saveTheme(next)
+    }
+
+    async func request() {
+        if loading {
+            return
+        }
+        const current = game
+        loading = true
+        failure = ""
+        const next, err = try await go nextSuggestion(turns)
+        if current != game {
+            return
+        }
+        loading = false
+        if err != null {
+            failure = err.message
+            return
+        }
+        suggestion = next
+    }
+
+    func toggle(i number) {
+        feedback[i] = (feedback[i] + 1) % 3
+    }
+
+    func submit() {
+        const played = suggestion
+        if played == null {
+            return
+        }
+        turns.push({ guess: played.guess, feedback, candidates: played.candidates })
+        const won = feedbackKey(feedback) == SOLVED
+        feedback = blank()
+        suggestion = null
+        if won {
+            solved = true
+        } else if turns.length < MAX_TURNS {
+            request()
+        }
+    }
+
+    func restart(marks []number) {
+        game++
+        loading = false
+        solved = false
+        failure = ""
+        suggestion = null
+        feedback = marks
+        request()
+    }
+
+    func newGame() {
+        turns = []
+        restart(blank())
+    }
+
+    // undo takes back the last turn: the solver is deterministic, so it suggests the same word
+    // again, with the marks it had, to be corrected.
+    func undo() {
+        const last = turns.pop()
+        if last != null {
+            restart(last.feedback)
+        }
+    }
+
+    mount() {
+        request()
+        // "auto" follows the system as it changes, and so must the colour of the browser's bars.
+        const scheme = matchMedia("(prefers-color-scheme: dark)")
+        const follow = () => applyTheme(theme)
+        scheme.addEventListener("change", follow)
+        return () => scheme.removeEventListener("change", follow)
+    }
+
+    return <div class={styles.page}>
+        <header class={styles.top}>
+            <div class={styles.brand}>
+                <span class={styles.logo} aria-hidden="true">5</span>
+                <h1 class={styles.name}>букв<small>решатель</small></h1>
+            </div>
+            <ThemeSwitch theme={theme} onPick={func(next Theme) { pickTheme(next) }} />
+        </header>
+
+        <main class={styles.layout}>
+            <section class={styles.board} aria-label="Попытки">
+                {for i, turn in turns {
+                    <div class={styles.row} role="group" aria-label={describe(i, turn)}>
+                        <span class={styles.side}>{i + 1}</span>
+                        {for j in POSITIONS {
+                            <Tile letter={turn.guess[j]} mark={turn.feedback[j]} />
+                        }}
+                        <span class={`${styles.side} ${styles.count}`} title="Сколько слов подходило перед этим ходом">
+                            {turn.candidates}
+                        </span>
+                    </div>
+                }}
+                {if playing {
+                    <div class={styles.row}>
+                        <span class={styles.side}><span class={styles.pulse} /></span>
+                        {if suggestion != null {
+                            for j in POSITIONS {
+                                <button
+                                    type="button"
+                                    class={styles.key}
+                                    aria-label={`${suggestion.guess[j]}: ${MARKS[feedback[j]]}. Нажмите, чтобы сменить`}
+                                    onClick={toggle(j)}>
+                                    <Tile letter={suggestion.guess[j]} mark={feedback[j]} index={j} animate />
+                                </button>
+                            }
+                        } else {
+                            for _ in POSITIONS {
+                                <Tile letter="" mark={-1} />
+                            }
+                        }}
+                        <span class={`${styles.side} ${styles.count}`}>{suggestion?.candidates ?? ""}</span>
+                    </div>
+                }}
+                {for _ in spare {
+                    <div class={styles.row} aria-hidden="true">
+                        <span class={styles.side} />
+                        {for _ in POSITIONS {
+                            <Tile letter="" mark={-1} />
+                        }}
+                        <span class={styles.side} />
+                    </div>
+                }}
+            </section>
+
+            <aside class={styles.panel}>
+                {if solved {
+                    <div class={styles.win} role="status">
+                        <p class={styles.title}>Угадано!</p>
+                        <p class={styles.muted}>За {turns.length} {plural(turns.length, "попытку", "попытки", "попыток")}.</p>
+                    </div>
+                } else if !playing {
+                    <div role="status">
+                        <p class={styles.title}>Попытки закончились</p>
+                        <p class={styles.muted}>Если где-то ошиблись с цветом, отмените ход и исправьте его.</p>
+                    </div>
+                } else if failure != "" {
+                    <div class={styles.fail} role="alert">
+                        <p class={styles.title}>Не сходится</p>
+                        <p class={styles.muted}>{failure}</p>
+                    </div>
+                } else if suggestion != null {
+                    <div class={styles.stat}>
+                        <span class={styles.big}>{suggestion.candidates}</span>
+                        <span class={styles.muted}>
+                            {plural(suggestion.candidates, "слово ещё подходит", "слова ещё подходят", "слов ещё подходят")}
+                        </span>
+                    </div>
+                    if suggestion.probe {
+                        <p class={styles.probe}>
+                            <span class={styles.badge}>разведчик</span>Ответом это слово быть не может, зато проверит больше букв сразу.
+                        </p>
+                    }
+                    <p class={styles.hint}>Введите слово в игре, а потом нажимайте на буквы на поле, чтобы повторить её цвета.</p>
+                    <Legend />
+                    <div class={styles.dock}>
+                        <button type="button" class={`${styles.btn} ${styles.primary}`} disabled={loading} onClick={submit()}>
+                            {correct ? "Это ответ ✓" : "Дальше →"}
+                        </button>
+                    </div>
+                } else {
+                    <p class={`${styles.muted} ${styles.loading}`} role="status">Подбираю слово…</p>
+                }}
+
+                <div class={styles.actions}>
+                    <button type="button" class={`${styles.btn} ${styles.ghost}`} disabled={turns.length == 0} onClick={undo()}>
+                        <svg class={styles.glyph} viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 14 4 9l5-5" />
+                            <path d="M4 9h11a5 5 0 0 1 0 10h-3" />
+                        </svg>
+                        Отменить ход
+                    </button>
+                    <button type="button" class={`${styles.btn} ${playing ? styles.ghost : styles.primary}`} onClick={newGame()}>
+                        Новая игра
+                    </button>
+                </div>
+
+                <details class={styles.about}>
+                    <summary>Как выбирается слово</summary>
+                    <p>
+                        Каждая буква стоит столько, сколько ещё подходящих слов её содержат. Решатель предлагает
+                        подходящее слово с самыми ценными буквами, а когда слов больше, чем осталось попыток, —
+                        иногда «разведчика»: слово, которое не может быть ответом, но проверяет больше букв за раз.
+                    </p>
+                    <p>Всё считается прямо в браузере, в отдельном потоке.</p>
+                </details>
+            </aside>
+        </main>
+    </div>
+}

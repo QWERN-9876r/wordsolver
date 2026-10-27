@@ -1,0 +1,37 @@
+/* The theme switch: three round buttons in a pill, the picked one filled with the ink colour. */
+
+.switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.option {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.option[aria-checked="true"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.option:focus-visible {
+  outline: 2.5px solid var(--focus);
+  outline-offset: 2px;
+}

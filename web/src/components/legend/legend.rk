@@ -1,0 +1,9 @@
+import styles from "./legend.module.css"
+
+export comp Legend() {
+    return <ul class={styles.legend} aria-label="Цвета букв">
+        <li class={styles.chip}><span class={`${styles.swatch} ${styles.absent}`} />нет в слове</li>
+        <li class={styles.chip}><span class={`${styles.swatch} ${styles.present}`} />не на месте</li>
+        <li class={styles.chip}><span class={`${styles.swatch} ${styles.correct}`} />на месте</li>
+    </ul>
+}

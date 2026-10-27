@@ -1,0 +1,19 @@
+import styles from "./theme-switch.module.css"
+import { THEMES, THEME_NAMES, Theme } from "../../theme/theme.rk"
+import { ThemeIcon } from "../theme-icon/theme-icon.rk"
+
+// ThemeSwitch picks the theme of the page; onPick gets the theme a button stands for.
+export comp ThemeSwitch(theme Theme, onPick func(Theme)) {
+    return <div class={styles.switch} role="radiogroup" aria-label="Тема">{for option in THEMES {
+        <button
+            type="button"
+            class={styles.option}
+            role="radio"
+            aria-checked={option == theme ? "true" : "false"}
+            aria-label={THEME_NAMES[option]}
+            title={THEME_NAMES[option]}
+            onClick={onPick(option)}>
+            <ThemeIcon kind={option} />
+        </button>
+    }}</div>
+}

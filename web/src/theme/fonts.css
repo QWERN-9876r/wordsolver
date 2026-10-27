@@ -1,0 +1,5 @@
+/* Unbounded (letters and headings) and Manrope (text), both OFL and with Cyrillic, served with
+   the page instead of from a font service; Vite puts the files into assets/. */
+
+@import '@fontsource-variable/unbounded';
+@import '@fontsource-variable/manrope';

@@ -1,0 +1,15 @@
+import styles from "./tile.module.css"
+
+// The classes of the marks, by mark + 1: an empty slot, then the marks 0, 1 and 2.
+const MARK_CLASSES = [styles.empty, styles.absent, styles.present, styles.correct]
+
+// Tile is one letter cell; mark -1 is an empty slot of a row not played yet. Only the tiles of a
+// new suggestion animate: a played word moves to the history as it is, without coming in again.
+// index, the place of the letter in its word, staggers the animation.
+export comp Tile(letter string, mark number, index number = 0, animate bool = false) {
+    return <span
+        class={`${styles.tile} ${MARK_CLASSES[mark + 1]} ${animate ? styles.enter : ""}`}
+        data-index={String(index)}>
+        {letter}
+    </span>
+}

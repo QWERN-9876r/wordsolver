@@ -1,0 +1,41 @@
+/* What the three colours of the tiles mean, as chips. */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.swatch {
+  box-sizing: border-box;
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+}
+
+.absent {
+  background: var(--absent);
+}
+
+.present {
+  border: 1.5px solid var(--present-line);
+  background: var(--present);
+}
+
+.correct {
+  background: var(--correct);
+}

@@ -1,0 +1,4 @@
+.DS_Store
+# Build outputs of build_app.sh and `go build`.
+/wordsolver
+/WordSolver.app/
